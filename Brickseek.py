@@ -1,5 +1,10 @@
 import requests
 import bs4
+
+#Overall Inventory
+InventoryOverall = []
+
+
 def get_num(x):
 	return float(''.join(ele for ele in x if ele.isdigit() or ele == '.'))
 def get_dec(x):
@@ -21,12 +26,12 @@ def Target(SKU, ZIP):
 	res = requests.post('http://brickseek.com/target-inventory-checker/?sku='.format(str(SKU)), data=data)
 	page = bs4.BeautifulSoup(res.text, "lxml")
 	Information = {
+	'ItemName': str(str(page.select('.builder-row div div div')).partition('<img alt="')[2]).partition('" src=')[0],
 	'Discounted': str(str(page.select('.builder-row div div div div')).partition('"product-stock-status-percent">')[2]).partition('</span>\n<span class="product-stock-status-description">')[0],
 	'StockPercent': str(str(page.select('.builder-row div div div div')).partition('"product-stock-status-percent">')[2].partition('"product-stock-status-percent">')[2]).partition('</span>\n<span class=')[0],
-	"MSRP": str(str(page.select('.builder-row div div div')).partition('MSRP: <strong>')[2]).partition('</strong></span>')[0],
+	"MSRP": get_dec(str((str(page.select('.builder-row div div div')).partition('MSRP: <strong>')[2]).partition('</strong></span>')[0].replace('$', ""))),
 	"DCPI": str(str(page.select('.builder-row div div div')).partition('DPCI: <strong>')[2]).partition('</strong></span>')[0]
 		}
-	print(Information)
 	Stores = page.select('.bsapi-inventory-checker-stores tr')
 	for Result in Stores:
 		try:
@@ -36,10 +41,11 @@ def Target(SKU, ZIP):
 			"ForSale": int(get_num(str(str(Result).replace('<br/>', " ").partition('Saleable Qty: <strong>')[2]).partition('</strong>')[0])),
 			"Price": get_dec((str(str(Result)).partition('$')[2]).partition('</span>')[0])
 			}
-			print(Inventory)
+			InventoryOverall.append(Inventory.copy())
 
 		except BaseException as exp:
 			pass
+	return (Information, InventoryOverall)
 def Walmart(SKU, ZIP):
 	data = {
 		'store_type': '3',
@@ -50,13 +56,13 @@ def Walmart(SKU, ZIP):
 	res = requests.post('http://brickseek.com/walmart-inventory-checker/?sku={}'.format(str(SKU)), data=data)
 	page = bs4.BeautifulSoup(res.text, "lxml")
 	Information = {
+	'ItemName': str(str(page.select('.builder-row div div div')).partition('<img alt="')[2]).partition('" src=')[0],
 	'Discounted': str(str(page.select('.builder-row div div div div')).partition('"product-stock-status-percent">')[2]).partition('</span>\n<span class="product-stock-status-description">')[0],
 	'StockPercent': str(str(page.select('.builder-row div div div div')).partition('"product-stock-status-percent">')[2].partition('"product-stock-status-percent">')[2]).partition('</span>\n<span class=')[0],
-	"MSRP": str(str(page.select('.builder-row div div div')).partition('MSRP: <strong>')[2]).partition('</strong></span>')[0],
+	"MSRP": get_dec(str((str(page.select('.builder-row div div div')).partition('MSRP: <strong>')[2]).partition('</strong></span>')[0].replace('$', ""))),
 	"SKU": str(str(page.select('.builder-row div div div')).partition('SKU: <strong>')[2]).partition('</strong></span>')[0],
 	"UPC": str(str(page.select('.builder-row div div div')).partition('UPC: <strong>')[2]).partition('</strong>')[0]
 		}
-	print(Information)
 	Stores = page.select('.bsapi-inventory-checker-stores tr')
 	for Result in Stores:
 		try:
@@ -66,9 +72,10 @@ def Walmart(SKU, ZIP):
 			"ForSale": int(get_num(str(str(Result).replace('<br/>', " ").partition('Quantity: <strong>')[2]).partition('</strong>')[0])),
 			"Price": get_dec((str(str(Result)).partition('$')[2]).partition('</span>')[0])
 			}
-			print(Inventory)
+			InventoryOverall.append(Inventory.copy())
 		except BaseException as exp:
 			pass
+	return (Information, InventoryOverall)
 def Staples(SKU, ZIP):
 	data = {
 		'store_type': '3',
