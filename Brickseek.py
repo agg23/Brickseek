@@ -62,11 +62,11 @@ def Walmart(SKU, ZIP):
 		try:
 			Inventory = {
 			"Store": str(str(Result).replace('<br/>', " ").partition('class="store-address">')[2]).partition('</address>')[0],
-			"OnHand": int(get_num(str(str(Result).replace('<br/>', " ").partition('On Hand Qty: <strong>')[2]).partition('</strong>')[0])),
-			"ForSale": int(get_num(str(str(Result).replace('<br/>', " ").partition('Saleable Qty: <strong>')[2]).partition('</strong>')[0])),
+			"OnHand": int(get_num(str(str(Result).replace('<br/>', " ").partition('Quantity: <strong>')[2]).partition('</strong>')[0])),
+			"ForSale": int(get_num(str(str(Result).replace('<br/>', " ").partition('Quantity: <strong>')[2]).partition('</strong>')[0])),
 			"Price": get_dec((str(str(Result)).partition('$')[2]).partition('</span>')[0])
 			}
-			#print(Inventory)
+			print(Inventory)
 		except BaseException as exp:
 			pass
 def Staples(SKU, ZIP):
