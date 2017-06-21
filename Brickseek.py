@@ -49,25 +49,24 @@ def Walmart(SKU, ZIP):
 		}
 	res = requests.post('http://brickseek.com/walmart-inventory-checker/?sku={}'.format(str(SKU)), data=data)
 	page = bs4.BeautifulSoup(res.text, "lxml")
-	print(page.select('.builder-row div div div'))
 	Information = {
 	'Discounted': str(str(page.select('.builder-row div div div div')).partition('"product-stock-status-percent">')[2]).partition('</span>\n<span class="product-stock-status-description">')[0],
 	'StockPercent': str(str(page.select('.builder-row div div div div')).partition('"product-stock-status-percent">')[2].partition('"product-stock-status-percent">')[2]).partition('</span>\n<span class=')[0],
 	"MSRP": str(str(page.select('.builder-row div div div')).partition('MSRP: <strong>')[2]).partition('</strong></span>')[0],
-	"DCPI": str(str(page.select('.builder-row div div div')).partition('DPCI: <strong>')[2]).partition('</strong></span>')[0]
+	"SKU": str(str(page.select('.builder-row div div div')).partition('SKU: <strong>')[2]).partition('</strong></span>')[0],
+	"UPC": str(str(page.select('.builder-row div div div')).partition('UPC: <strong>')[2]).partition('</strong>')[0]
 		}
 	print(Information)
-	Stores = page.select('tr')[1:]
+	Stores = page.select('.bsapi-inventory-checker-stores tr')
 	for Result in Stores:
 		try:
-			Rows = Result.select('td')
 			Inventory = {
-			"Store": str(Rows[1]).replace('<br/>', " ").replace('td>', "").replace('</', '').replace('<', ''),
-			"OnHand": int(get_num((Rows[2]).getText())),
-			"ForSale": int(get_num((Rows[2]).getText())),
-			"Price": get_dec((Rows[3]).getText())
-		}
-			print(Inventory)
+			"Store": str(str(Result).replace('<br/>', " ").partition('class="store-address">')[2]).partition('</address>')[0],
+			"OnHand": int(get_num(str(str(Result).replace('<br/>', " ").partition('On Hand Qty: <strong>')[2]).partition('</strong>')[0])),
+			"ForSale": int(get_num(str(str(Result).replace('<br/>', " ").partition('Saleable Qty: <strong>')[2]).partition('</strong>')[0])),
+			"Price": get_dec((str(str(Result)).partition('$')[2]).partition('</span>')[0])
+			}
+			#print(Inventory)
 		except BaseException as exp:
 			pass
 def Staples(SKU, ZIP):
