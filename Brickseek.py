@@ -21,24 +21,23 @@ def Target(SKU, ZIP):
 	res = requests.post('http://brickseek.com/target-inventory-checker/?sku='.format(str(SKU)), data=data)
 	page = bs4.BeautifulSoup(res.text, "lxml")
 	Information = {
-	'Discounted': str(str(page.select('.post-content div div div div')).partition('<b>Discounted: </b> ')[2]).partition('</div>, <div style="width: ')[0],
-	'StockPercent': str(str(page.select('.post-content div div div div')).partition('<b>In Stock: </b>')[2]).partition('</div>')[0],
-	"MSRP": str(str(page.select('.post-content div div div div')).partition('<b>MSRP: </b>')[2]).partition('</div>, <div style="width:')[0],
-	"DCPI": str(str(page.select('.post-content div div div div')).partition('float:left"><b>DPCI </b>')[2]).partition('</div>, <div style="width:')[0]
+	'Discounted': str(str(page.select('.builder-row div div div div')).partition('"product-stock-status-percent">')[2]).partition('</span>\n<span class="product-stock-status-description">')[0],
+	'StockPercent': str(str(page.select('.builder-row div div div div')).partition('"product-stock-status-percent">')[2].partition('"product-stock-status-percent">')[2]).partition('</span>\n<span class=')[0],
+	"MSRP": str(str(page.select('.builder-row div div div')).partition('MSRP: <strong>')[2]).partition('</strong></span>')[0],
+	"DCPI": str(str(page.select('.builder-row div div div')).partition('DPCI: <strong>')[2]).partition('</strong></span>')[0]
 		}
 	print(Information)
-	Stores = str(page.select('#content')[0]).split('<tr class="store_row"')
+	Stores = page.select('.bsapi-inventory-checker-stores tr')
 	for Result in Stores:
 		try:
-			Result = bs4.BeautifulSoup(Result, "lxml")
-
 			Inventory = {
-			"Store": str(str(Result).replace('<br/>', " ").partition('30px;"></td><td>')[2]).partition('</td><td ')[0],
-			"OnHand": int(get_num(str(str(Result).replace('<br/>', " ").partition('</td><td style="text-align: center">')[2]).partition('</td><td style=')[0])),
-			"ForSale": int(get_num(str(str(Result).replace('<br/>', " ").partition('</td><td style="text-align: center">')[2]).partition('</td><td style=')[2].partition('"text-align: center">')[2].partition('</td><td ')[0])),
-			"Price": get_dec((str(str(Result)).partition('$')[2]).partition('</a>')[0])
-		}
+			"Store": str(str(Result).replace('<br/>', " ").partition('class="store-address">')[2]).partition('</address>')[0],
+			"OnHand": int(get_num(str(str(Result).replace('<br/>', " ").partition('On Hand Qty: <strong>')[2]).partition('</strong>')[0])),
+			"ForSale": int(get_num(str(str(Result).replace('<br/>', " ").partition('Saleable Qty: <strong>')[2]).partition('</strong>')[0])),
+			"Price": get_dec((str(str(Result)).partition('$')[2]).partition('</span>')[0])
+			}
 			print(Inventory)
+
 		except BaseException as exp:
 			pass
 def Walmart(SKU, ZIP):
@@ -50,11 +49,12 @@ def Walmart(SKU, ZIP):
 		}
 	res = requests.post('http://brickseek.com/walmart-inventory-checker/?sku={}'.format(str(SKU)), data=data)
 	page = bs4.BeautifulSoup(res.text, "lxml")
+	print(page.select('.builder-row div div div'))
 	Information = {
-	'Discounted': str(str(page.select('.post-content div div div div')).partition('<b>Discounted: </b> ')[2]).partition('</div>, <div style="width: ')[0],
-	'StockPercent': str(str(page.select('.post-content div div div div')).partition('<b>In Stock: </b>')[2]).partition('</div>')[0],
-	"MSRP": str(str(page.select('.post-content div div div div')).partition('<b>MSRP: </b>')[2]).partition('</div>, <div style="width:')[0],
-	"DCPI": str(str(page.select('.post-content div div div div')).partition('float:left"><b>DPCI </b>')[2]).partition('</div>, <div style="width:')[0]
+	'Discounted': str(str(page.select('.builder-row div div div div')).partition('"product-stock-status-percent">')[2]).partition('</span>\n<span class="product-stock-status-description">')[0],
+	'StockPercent': str(str(page.select('.builder-row div div div div')).partition('"product-stock-status-percent">')[2].partition('"product-stock-status-percent">')[2]).partition('</span>\n<span class=')[0],
+	"MSRP": str(str(page.select('.builder-row div div div')).partition('MSRP: <strong>')[2]).partition('</strong></span>')[0],
+	"DCPI": str(str(page.select('.builder-row div div div')).partition('DPCI: <strong>')[2]).partition('</strong></span>')[0]
 		}
 	print(Information)
 	Stores = page.select('tr')[1:]
