@@ -1,8 +1,7 @@
 import requests
 import bs4
 
-#Overall Inventory
-InventoryOverall = []
+
 
 
 def get_num(x):
@@ -15,6 +14,8 @@ def ReturnItem(page):
 	item = str(page.title.string.encode("ascii", "ignore"))
 	return str(item)
 def Target(SKU, ZIP):
+	#Overall Inventory
+	InventoryOverall = []
 	if '-' not in SKU:
 		SKU = ('{}-{}-{}'.format(SKU[0:3], SKU[3:5], SKU[5:9]))
 	data = {
@@ -42,11 +43,13 @@ def Target(SKU, ZIP):
 			"Price": get_dec((str(str(Result)).partition('$')[2]).partition('</span>')[0])
 			}
 			InventoryOverall.append(Inventory.copy())
-
+			
 		except BaseException as exp:
 			pass
 	return (Information, InventoryOverall)
 def Walmart(SKU, ZIP):
+	#Overall Inventory
+	InventoryOverall = []
 	data = {
 		'store_type': '3',
 		'sku': SKU,
