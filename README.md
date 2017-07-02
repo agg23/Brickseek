@@ -12,8 +12,8 @@ Unofficial BrickSeek API
 
 # Clone Github Repo
 
-    git clone https://github.com/theriley106/Brickseek.git
+    git clone https://github.com/jaredkaczynski/Brickseek.git
 
 # Example
 	import Brickseek
-	Brickseek.Target('056-02-0212', '29617')
+	print(Brickseek.Target('056-02-0212', '29617'))
