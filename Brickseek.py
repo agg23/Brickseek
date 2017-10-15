@@ -88,7 +88,6 @@ class Api(object):
 		return str(item)
 
 	def lookupTarget(self, item, zip):
-		#Overall Inventory
 		inventory = []
 		sku = item.sku
 		if '-' not in sku:
@@ -135,11 +134,11 @@ class Api(object):
 				
 			except BaseException as exp:
 				pass
+
 		return inventory
 
 	def lookupWalmart(self, item, zip):
-		#Overall Inventory
-		InventoryOverall = []
+		inventory = []
 		sku = item.sku
 		data = {
 			'store_type': '3',
@@ -149,29 +148,37 @@ class Api(object):
 			}
 		res = requests.post('http://brickseek.com/walmart-inventory-checker/?sku={}'.format(str(sku)), data=data)
 		page = bs4.BeautifulSoup(res.text, "lxml")
-		Information = {
-		'ItemName': str(str(page.select('.builder-row div div div')).partition('<img alt="')[2]).partition('" src=')[0],
-		'Discounted': str(str(page.select('.builder-row div div div div')).partition('"product-stock-status-percent">')[2]).partition('</span>\n<span class="product-stock-status-description">')[0],
-		'StockPercent': str(str(page.select('.builder-row div div div div')).partition('"product-stock-status-percent">')[2].partition('"product-stock-status-percent">')[2]).partition('</span>\n<span class=')[0],
-		"MSRP": self.get_dec(str((str(page.select('.builder-row div div div')).partition('MSRP: <strong>')[2]).partition('</strong></span>')[0].replace('$', ""))),
-		"SKU": str(str(page.select('.builder-row div div div')).partition('SKU: <strong>')[2]).partition('</strong></span>')[0],
-		"UPC": str(str(page.select('.builder-row div div div')).partition('UPC: <strong>')[2]).partition('</strong>')[0]
-			}
-		Stores = page.select('.bsapi-inventory-checker-stores tr')
-		for Result in Stores:
+		name = str(str(page.select('.builder-row div div div')).partition('<img alt="')[2]).partition('" src=')[0]
+		discounted = str(str(page.select('.builder-row div div div div')).partition('"product-stock-status-percent">')[2]).partition('</span>\n<span class="product-stock-status-description">')[0]
+		stockingPercent = str(str(page.select('.builder-row div div div div')).partition('"product-stock-status-percent">')[2].partition('"product-stock-status-percent">')[2]).partition('</span>\n<span class=')[0]
+		msrp = self.get_dec(str((str(page.select('.builder-row div div div')).partition('MSRP: <strong>')[2]).partition('</strong></span>')[0].replace('$', "")))
+		upc = str(str(page.select('.builder-row div div div')).partition('SKU: <strong>')[2]).partition('</strong></span>')[0]
+
+		item.updateStats(name, discounted, stockingPercent, msrp, upc)
+
+		stores = page.select('.bsapi-inventory-checker-stores tr')
+		for result in stores:
 			try:
-				Inventory = {
-				"Store": str(str(Result).replace('<br/>', " ").partition('class="store-address">')[2]).partition('</address>')[0],
-				"OnHand": int(self.get_num(str(str(Result).replace('<br/>', " ").partition('Quantity: <strong>')[2]).partition('</strong>')[0])),
-				"ForSale": int(self.get_num(str(str(Result).replace('<br/>', " ").partition('Quantity: <strong>')[2]).partition('</strong>')[0])),
-				"Price": self.get_dec((str(str(Result)).partition('$')[2]).partition('</span>')[0])
-				}
-				InventoryOverall.append(Inventory.copy())
+				address = str(str(result).replace('<br/>', " ").partition('class="store-address">')[2]).partition('</address>')[0]
+
+				forSale = 0
+				try:
+					forSale = int(self.get_num(str(str(result).replace('<br/>', " ").partition('Quantity: <strong>')[2]).partition('</strong>')[0]))
+				except:
+					pass
+
+				price = self.get_dec((str(str(result)).partition('$')[2]).partition('</span>')[0])
+
+				item = Inventory(self.brickseek.lookupStore(address), forSale, forSale, price)
+				inventory.append(item)
+
 			except BaseException as exp:
 				pass
-		return (Information, InventoryOverall)
+
+		return inventory
 
 	def lookupStaples(self, item, zip):
+		inventory = []
 		sku = item.sku
 		data = {
 			'store_type': '3',
@@ -182,16 +189,17 @@ class Api(object):
 
 		res = requests.post('https://brickseek.com/inventory-check/staples/', data=data)
 		page = bs4.BeautifulSoup(res.text, "lxml")
-		Table = page.select('tr')[1:]
-		for rows in Table:
+		table = page.select('tr')[1:]
+		for rows in table:
 			if 'Stock' not in str(rows):
-				Table.remove(rows)
-		for rows in Table:
+				table.remove(rows)
+		for rows in table:
 			try:
-				Inventory = {
-				'Store': str(rows.select('td')[0]).partition(') <br/>')[2].partition('<br/>(')[0].replace('<br/>', ' '),
-				'Quantity': int(self.get_num(rows.select('td')[1].getText()))
-				}
-				print(Inventory)
+				store = str(rows.select('td')[0]).partition(') <br/>')[2].partition('<br/>(')[0].replace('<br/>', ' ')
+				quantity = int(self.get_num(rows.select('td')[1].getText()))
+
+				inventory.append(Inventory(self.brickseek.lookupStore(address), quantity, quantity, None))
 			except:
 				pass
+
+		return inventory
