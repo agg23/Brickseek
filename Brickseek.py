@@ -1,6 +1,7 @@
 import requests
 import bs4
 from enum import Enum
+import traceback
 
 class Retailer(Enum):
 	WALMART = 0
@@ -23,18 +24,20 @@ class Item(object):
 		self.msrp = 0.0
 		self.dcpi = 0.0
 
-	def getLocalInventory(self, zip):
+		self.inventory = []
+
+	def fetchLocalInventory(self, zip):
 		if self.retailer == Retailer.WALMART:
-			self.stores = self.api.lookupWalmart(self, zip)
+			self.inventory = self.api.lookupWalmart(self, zip)
 		elif self.retailer == Retailer.TARGET:
-			self.stores = self.api.lookupTarget(self, zip)
+			self.inventory = self.api.lookupTarget(self, zip)
 		elif self.retailer == Retailer.STAPLES:
-			self.stores = self.api.lookupStaples(self, zip)
+			self.inventory = self.api.lookupStaples(self, zip)
 		else:
 			print("Unknown retailer")
 			return
 
-		return self.stores
+		return self.inventory
 
 	def updateStats(self, name, discounted, stockingPercent, msrp, dcpi):
 		self.name = name
@@ -42,6 +45,18 @@ class Item(object):
 		self.stockingPercent = stockingPercent
 		self.msrp = msrp
 		self.dcpi = dcpi
+
+	def getURL(self):
+		if self.retailer == Retailer.WALMART:
+			return "http://brickseek.com/walmart-inventory-checker/?sku={}".format(str(self.sku))
+		elif self.retailer == Retailer.TARGET:
+			return "http://brickseek.com/target-inventory-checker/?sku=".format(str(self.sku))
+		elif self.retailer == Retailer.STAPLES:
+			print("Staples URL not supported")
+			return
+		else:
+			print("Unknown retailer")
+			return
 
 class Inventory(object):
 	def __init__(self, store, forSale, onHand, price):
@@ -54,6 +69,15 @@ class Brickseek(object):
 	def __init__(self):
 		self.api = Api(self)
 		self.knownStores = {}
+
+	def createWalmartItem(self, sku):
+		return Item(self.api, Retailer.WALMART, sku)
+
+	def createTargetItem(self, sku):
+		return Item(self.api, Retailer.TARGET, sku)
+
+	def createStaplesItem(self, sku):
+		return Item(self.api, Retailer.STAPLES, sku)
 
 	def createItem(self, retailer, sku):
 		return Item(self.api, retailer, sku)
@@ -71,9 +95,19 @@ class Brickseek(object):
 
 		return store
 
+	def updateUserAgent(self, userAgent):
+		self.api.userAgent = userAgent
+
+	def updateCookies(self, cf_clearance, cfduid):
+		self.api.cf_clearance = cf_clearance
+		self.api.cfduid = cfduid
+
 class Api(object):
 	def __init__(self, brickseek):
 		self.brickseek = brickseek
+		self.cf_clearance = None
+		self.cfduid = None
+		self.userAgent = None
 
 	def get_num(self, x):
 		return float(''.join(ele for ele in x if ele.isdigit() or ele == '.'))
@@ -146,13 +180,49 @@ class Api(object):
 			'zip': zip,
 			'sort': 'distance'
 			}
-		res = requests.post('http://brickseek.com/walmart-inventory-checker/?sku={}'.format(str(sku)), data=data)
+
+		cookies = {}
+		headers = {}
+
+		if self.cf_clearance and self.cfduid:
+			cookies = {'cf_clearance': self.cf_clearance, '__cfduid': self.cfduid}
+
+		if self.userAgent:
+			headers = {'user-agent': self.userAgent}
+
+		res = requests.post('https://brickseek.com/walmart-inventory-checker/?sku={}'.format(str(sku)), data=data, headers=headers, cookies=cookies, timeout=10)
+
+		if res.status_code != 200:
+			return res.status_code
+
 		page = bs4.BeautifulSoup(res.text, "lxml")
+
 		name = str(str(page.select('.builder-row div div div')).partition('<img alt="')[2]).partition('" src=')[0]
-		discounted = str(str(page.select('.builder-row div div div div')).partition('"product-stock-status-percent">')[2]).partition('</span>\n<span class="product-stock-status-description">')[0]
-		stockingPercent = str(str(page.select('.builder-row div div div div')).partition('"product-stock-status-percent">')[2].partition('"product-stock-status-percent">')[2]).partition('</span>\n<span class=')[0]
-		msrp = self.get_dec(str((str(page.select('.builder-row div div div')).partition('MSRP: <strong>')[2]).partition('</strong></span>')[0].replace('$', "")))
-		upc = str(str(page.select('.builder-row div div div')).partition('SKU: <strong>')[2]).partition('</strong></span>')[0]
+		
+		discounted = None
+		try:
+			discounted = str(str(page.select('.builder-row div div div div')).partition('"product-stock-status-percent">')[2]).partition('</span>\n<span class="product-stock-status-description">')[0]
+		except:
+			pass
+		
+		stockingPercent = None
+		try:
+			stockingPercent = str(str(page.select('.builder-row div div div div')).partition('"product-stock-status-percent">')[2].partition('"product-stock-status-percent">')[2]).partition('</span>\n<span class=')[0]
+		except:
+			pass
+		
+		msrp = None
+		try:
+			msrp = self.get_dec(str((str(page.select('.builder-row div div div')).partition('MSRP: <strong>')[2]).partition('</strong></span>')[0].replace('$', "")))
+		except:
+			# MSRP is not a number (likely N.A.)
+			pass
+
+		upc = None
+		try:
+			upc = str(str(page.select('.builder-row div div div')).partition('SKU: <strong>')[2]).partition('</strong></span>')[0]
+		except:
+			pass
 
 		item.updateStats(name, discounted, stockingPercent, msrp, upc)
 
